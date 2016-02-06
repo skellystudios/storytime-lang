@@ -96,7 +96,7 @@ parseSymbol = parseArticleSymbol <|> parseTitleSymbol
 parseMethodDec :: Parser Token
 parseMethodDec = do
                 name <- many (letter)
-                stuff <- string "is where"
+                stuff <- string " is where"
                 return $ MethodDecOp name
 
 parseNumber :: Parser Token
@@ -111,6 +111,11 @@ parseSayOperator = do
                 return $ SayOperator
 
 
+parseUnboundVariable :: Parser Token
+parseUnboundVariable = do
+                first <- choice (map (try . string) ["someone"])
+                return $ UnboundVariable first
+
 parseAssignOperator :: Parser Token
 parseAssignOperator = do
                 first <- choice (map (try . string) assignKeywords)
@@ -118,6 +123,7 @@ parseAssignOperator = do
 
 parseExpr :: Parser Token
 parseExpr = try parseMethodDec
+         <|> try parseUnboundVariable
          <|> try parseSymbol
          <|> try parseSayOperator
          <|> try parseAssignOperator

@@ -8,6 +8,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Fix
 import Data.HashMap.Strict hiding (map)
+import Data.Char
 
 import Types
 import Examples
@@ -25,9 +26,10 @@ runExpr (PrimString str) = do
                       return $ S str
 
 runExpr (GetVar str) = do
-						dict <- get
-						let val = getValue str dict
-						return val
+                          dict <- get
+                          y <- liftIO(runStateT (runExpr str) dict)
+                          let val = getValue (fst y) dict
+                          return val
 
 runExpr (SetVar name_expr val_expr) = do
             dict <- get
@@ -41,7 +43,7 @@ runExpr (SetVar name_expr val_expr) = do
 
 runExpr (DerefSymbol str) = do
             dict <- get
-            let someone_deref = (getValue "someone_ref" dict)
+            let someone_deref = (getValue "someone_val" dict)
             return $ case str of
                               "someone" -> toS someone_deref
                               _         -> str
@@ -52,6 +54,15 @@ runExpr (MethodDec name_str method_ast) = do
             put newDict
             return $ S name_str
 
+
+runExpr (MethodApp method_name arg_name) = do
+            dict <- get
+            let method = (getMethod method_name dict)
+            let arg_val = (getValue arg_name dict)
+            let new_dict = setValue "someone_val" (S arg_name) dict
+            val_res <- liftIO(runStateT (runExpr method) new_dict)
+            let new_val = fst val_res
+            return $ new_val
 
 runExpr GetLine =
             liftIO getLine
@@ -68,7 +79,8 @@ getValue n (Store values methods) =
 
 getMethod :: Name -> Store -> Expr Value
 getMethod n (Store values methods) =
-  lookupDefault (PrimString n) n methods 
+  let full_n = (map toLower n) ++ "ing" in
+    lookupDefault (PrimString full_n) full_n methods
 
 setValue :: Name -> Value -> Store -> Store
 setValue n val (Store values methods) =
@@ -77,16 +89,19 @@ setValue n val (Store values methods) =
 
 setMethod :: Name -> Expr Value -> Store -> Store
 setMethod n val (Store values methods) =
-  let new_methods = insert n val methods in
+  let new_methods = insert (map toLower n) val methods in
     Store values new_methods
 
 
 makeAST :: TokenSeq -> Expr Value
 makeAST (sub@(Symbol x):(SayOperator):phr@(String y):[]) = Print (PrimString y)
-makeAST (sub@(Symbol x):(SayOperator):_) = Print (GetVar x)
+makeAST (sub@(Symbol x):(Atom a):[]) = MethodApp a x
+makeAST (sub@(UnboundVariable x):(SayOperator):phr@(String y):[]) = Print (PrimString y)
+makeAST (sub@(UnboundVariable x):(SayOperator):_) = Print (GetVar (DerefSymbol x))
+makeAST (sub@(Symbol x):(SayOperator):_) = Print (GetVar (DerefSymbol x))
 makeAST (sub@(Symbol x):(AssignOperator):tks) = SetVar (DerefSymbol x) (makeAST tks)
+makeAST (sub@(Symbol x):[]) = GetVar (DerefSymbol x)
 makeAST [(String x)] = PrimString x
-makeAST [(Symbol x)] = GetVar x
 makeAST ((MethodDecOp x):tks) = MethodDec x (makeAST tks)
 
 makeASTs = map makeAST . tokenize
@@ -99,4 +114,4 @@ f store stateT = liftM (snd) (runStateT stateT store)
 makeSTs = map runExpr . makeASTs
 
 
-runProgram xs = foldM f (Store empty empty) (makeSTs xs)
+run xs = foldM f (Store empty empty) (makeSTs xs)

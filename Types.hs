@@ -24,10 +24,13 @@ data Expr :: * -> * where
     PrimString :: String -> Expr Value
 
     -- Variables (created on demand)
-    GetVar :: Name -> Expr Value
+    GetVar :: Expr Name -> Expr Value
     SetVar :: Expr Name -> Expr Value -> Expr Value
     DerefSymbol :: String -> Expr Name
+
+    -- Methods
     MethodDec :: String -> Expr Value -> Expr Value
+    MethodApp :: String -> Name -> Expr Value
 
     -- Loop constructs
     While :: Expr Bool -> Expr a -> Expr ()
