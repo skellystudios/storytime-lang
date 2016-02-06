@@ -3,10 +3,13 @@
 module Types where
 
 import Control.Monad
+import Data.HashMap.Strict hiding (map)
 
 type Name = String
 data Value =  I Int | S String
-type Store = [(Name, Value)]
+data Store = Store ValueStore  MethodStore
+type ValueStore = (HashMap Name Value)
+type MethodStore = (HashMap Name (Expr Value))
 
 data Expr :: * -> * where
     -- Expr is a monad
@@ -22,7 +25,9 @@ data Expr :: * -> * where
 
     -- Variables (created on demand)
     GetVar :: Name -> Expr Value
-    SetVar :: Name -> Expr Value -> Expr Value
+    SetVar :: Expr Name -> Expr Value -> Expr Value
+    DerefSymbol :: String -> Expr Name
+    MethodDec :: String -> Expr Value -> Expr Value
 
     -- Loop constructs
     While :: Expr Bool -> Expr a -> Expr ()

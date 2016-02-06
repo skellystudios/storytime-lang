@@ -48,6 +48,8 @@ data Token = Atom String
              | Error
              | SayOperator
              | AssignOperator
+             | MethodDecOp String
+             | UnboundVariable String
              deriving Show
 
 spaces :: Parser ()
@@ -90,6 +92,13 @@ parseTitleSymbol = do
 parseSymbol :: Parser Token
 parseSymbol = parseArticleSymbol <|> parseTitleSymbol
 
+
+parseMethodDec :: Parser Token
+parseMethodDec = do
+                name <- many (letter)
+                stuff <- string "is where"
+                return $ MethodDecOp name
+
 parseNumber :: Parser Token
 parseNumber = liftM (Number . read) $ many1 digit
 
@@ -108,7 +117,8 @@ parseAssignOperator = do
                 return $ AssignOperator
 
 parseExpr :: Parser Token
-parseExpr = try parseSymbol
+parseExpr = try parseMethodDec
+         <|> try parseSymbol
          <|> try parseSayOperator
          <|> try parseAssignOperator
          <|> try parseAssignOperator
