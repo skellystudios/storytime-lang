@@ -5,6 +5,7 @@ import System.Environment
 import Control.Monad
 
 import Types
+import Keywords
 
 separator :: Parser Char
 separator = oneOf ","
@@ -13,6 +14,17 @@ terminator :: Parser ()
 terminator = do
              oneOf "."
              choice [eof , skipMany1 (oneOf " ")]
+
+titleCase :: Parser String
+titleCase = do
+              first <- upper
+              rest <- many (letter)
+              let atom = first:rest
+              return atom
+
+article :: Parser String
+article = (string "a ") <|> (string "the ") <|> (string "The ")
+
 
 readExpr :: String -> String
 readExpr input = case parse parseStatements "ShowStuff" input of
@@ -26,14 +38,16 @@ main = do
 
 
 test = readExpr
+type TokenSeq = [Token]
 
 data Token = Atom String
              | String String
              | Number Integer
              | Symbol String
-             | Seq [Token]
              | Separator
              | Error
+             | SayOperator
+             | AssignOperator
              deriving Show
 
 spaces :: Parser ()
@@ -62,14 +76,6 @@ parseAtom = do
               let atom = first:rest
               return $ Atom atom
 
-titleCase = do
-               first <- upper
-               rest <- many (letter)
-               let atom = first:rest
-               return atom
-
-article = (string "a ") <|> (string "the ") <|> (string "The ")
-
 parseArticleSymbol :: Parser Token
 parseArticleSymbol = do
                 first <- skipMany1 (article)
@@ -81,16 +87,31 @@ parseTitleSymbol = do
                 val <- titleCase
                 return $ Symbol val
 
+parseSymbol :: Parser Token
 parseSymbol = parseArticleSymbol <|> parseTitleSymbol
-
 
 parseNumber :: Parser Token
 parseNumber = liftM (Number . read) $ many1 digit
 
+parseSymbolOrAtom :: Parser Token
 parseSymbolOrAtom = choice [parseSymbol, parseAtom]
+
+parseSayOperator :: Parser Token
+parseSayOperator = do
+                first <- choice (map (try . string) sayKeywords)
+                return $ SayOperator
+
+
+parseAssignOperator :: Parser Token
+parseAssignOperator = do
+                first <- choice (map (try . string) assignKeywords)
+                return $ AssignOperator
 
 parseExpr :: Parser Token
 parseExpr = try parseSymbol
+         <|> try parseSayOperator
+         <|> try parseAssignOperator
+         <|> try parseAssignOperator
          <|> parseAtom
          <|> parseString
          <|> parseNumber
@@ -100,3 +121,8 @@ parseExpr = try parseSymbol
 parseSeq = sepBy parseExpr (optional space)
 
 parseStatements = endBy1 parseSeq terminator
+
+tokenize :: String -> [[Token]]
+tokenize input = case parse parseStatements "ShowStuff" input of
+    Left err -> [[Error]]
+    Right val -> val
