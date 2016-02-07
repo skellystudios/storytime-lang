@@ -9,6 +9,7 @@ import Control.Monad.Trans.State.Strict
 import Control.Monad.Fix
 import Data.HashMap.Strict hiding (map)
 import Data.Char
+import Data.List.Split
 
 import Types
 import Examples
@@ -64,6 +65,11 @@ runExpr (MethodApp method_name arg_name) = do
             let new_val = fst val_res
             return $ new_val
 
+runExpr (Sequence exprs) = do
+            dict <- get
+            res <- liftIO(foldM g (S "", dict) (map runExpr exprs))
+            return $ fst res
+
 runExpr GetLine =
             liftIO getLine
 
@@ -93,6 +99,13 @@ setMethod n val (Store values methods) =
     Store values new_methods
 
 
+splitBySeparator :: TokenSeq -> Expr Value
+splitBySeparator tks = let splits = (splitOn [Separator] tks) in
+                case (length splits) of
+                  1 -> makeAST tks
+                  _ -> Sequence (map makeAST splits)
+
+
 makeAST :: TokenSeq -> Expr Value
 makeAST (sub@(Symbol x):(SayOperator):phr@(String y):[]) = Print (PrimString y)
 makeAST (sub@(Symbol x):(Atom a):[]) = MethodApp a x
@@ -111,6 +124,10 @@ debugMakeAST = map (pp . makeAST) . tokenize
 
 f :: Store -> StateT Store IO a -> IO Store
 f store stateT = liftM (snd) (runStateT stateT store)
+
+g :: (a, Store) -> StateT Store IO a -> IO (a, Store)
+g (val,store) stateT = (runStateT stateT store)
+
 makeSTs = map runExpr . makeASTs
 
 

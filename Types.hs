@@ -37,7 +37,7 @@ data Expr :: * -> * where
     For   :: Expr a -> Expr Bool -> Expr b -> Expr c -> Expr ()
 
     -- Chained Statements
-    Sequence :: [Expr a] -> Expr ()
+    Sequence :: [Expr Value] -> Expr Value
 
 toS (I i) = show i
 toS (S s) = s

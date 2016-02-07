@@ -7,8 +7,8 @@ import Control.Monad
 import Types
 import Keywords
 
-separator :: Parser Char
-separator = oneOf ","
+separator :: Parser String
+separator = (string ",") <|> (string "and")
 
 terminator :: Parser ()
 terminator = do
@@ -23,7 +23,7 @@ titleCase = do
               return atom
 
 article :: Parser String
-article = (string "a ") <|> (string "the ") <|> (string "The ")
+article = (string "a ") <|> (string "the ") <|> (string "The ") <|> (string "A ")
 
 
 readExpr :: String -> String
@@ -50,7 +50,8 @@ data Token = Atom String
              | AssignOperator
              | MethodDecOp String
              | UnboundVariable String
-             deriving Show
+             | ExprSeq [Token]
+             deriving (Show, Eq)
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -113,7 +114,7 @@ parseSayOperator = do
 
 parseUnboundVariable :: Parser Token
 parseUnboundVariable = do
-                first <- choice (map (try . string) ["someone"])
+                first <- choice (map (try . string) ["someone", "they"])
                 return $ UnboundVariable first
 
 parseAssignOperator :: Parser Token
@@ -124,19 +125,21 @@ parseAssignOperator = do
 parseExpr :: Parser Token
 parseExpr = try parseMethodDec
          <|> try parseUnboundVariable
+         <|> try parseSeparator
          <|> try parseSymbol
          <|> try parseSayOperator
          <|> try parseAssignOperator
          <|> try parseAssignOperator
-         <|> parseAtom
+         <|> try parseAtom
          <|> parseString
          <|> parseNumber
-         <|> parseSeparator
 
--- parseSeq :: Parser [Token]
-parseSeq = sepBy parseExpr (optional space)
 
-parseStatements = endBy1 parseSeq terminator
+parseExprs :: Parser [Token]
+parseExprs = sepBy parseExpr (optional space)
+
+parseStatements :: Parser [[Token]]
+parseStatements = endBy1 parseExprs terminator
 
 tokenize :: String -> [[Token]]
 tokenize input = case parse parseStatements "ShowStuff" input of
