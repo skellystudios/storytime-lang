@@ -25,12 +25,14 @@ data Expr :: * -> * where
 
     -- Variables (created on demand)
     GetVar :: Expr Name -> Expr Value
+    OutputAscii :: Expr Name -> Expr Value
     SetVar :: Expr Name -> Expr Value -> Expr Value
     DerefSymbol :: String -> Expr Name
 
     -- Methods
     MethodDec :: String -> Expr Value -> Expr Value
     MethodApp :: String -> Name -> Expr Value
+    RepeatedMethodApp :: String -> Name -> Expr Value
 
     -- Loop constructs
     While :: Expr Bool -> Expr a -> Expr ()
@@ -38,6 +40,9 @@ data Expr :: * -> * where
 
     -- Chained Statements
     Sequence :: [Expr Value] -> Expr Value
+
+    -- Binary
+    Combine :: Expr Name -> Expr Name -> Expr Value
 
 toS (I i) = show i
 toS (S s) = s

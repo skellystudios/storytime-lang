@@ -51,6 +51,10 @@ data Token = Atom String
              | MethodDecOp String
              | UnboundVariable String
              | ExprSeq [Token]
+             | OutputAsciiOp
+             | CombineOp
+             | TransferOp
+             | RepeatOp
              deriving (Show, Eq)
 
 spaces :: Parser ()
@@ -114,17 +118,51 @@ parseSayOperator = do
 
 parseUnboundVariable :: Parser Token
 parseUnboundVariable = do
-                first <- choice (map (try . string) ["someone", "they"])
-                return $ UnboundVariable first
+                first <- choice (map (try . string) ["someone", "they", "them"])
+                return $ UnboundVariable "someone"
 
 parseAssignOperator :: Parser Token
 parseAssignOperator = do
                 first <- choice (map (try . string) assignKeywords)
                 return $ AssignOperator
 
+parseOutputAscii:: Parser Token
+parseOutputAscii = do
+                first <- choice (map (try . string) ["spew", "output", "vomit", "spewed", "vomitted"])
+                return $ OutputAsciiOp
+
+
+parseTransfer:: Parser Token
+parseTransfer = do
+                first <- choice (map (try . string) ["hugs", "hug"])
+                return $ TransferOp
+
+
+parseCombine:: Parser Token
+parseCombine = do
+                first <- choice (map (try . string) ["listens to", "listen to", "listened to"])
+                return $ CombineOp
+
+
+parseRepeat:: Parser Token
+parseRepeat = do
+                first <- choice (map (try . string) ["always"])
+                return $ RepeatOp
+
+
+parseEmptyString:: Parser Token
+parseEmptyString = do
+                first <- choice (map (try . string) ["nothing"])
+                return $ String ""
+
+
 parseExpr :: Parser Token
 parseExpr = try parseMethodDec
+         <|> try parseCombine
+         <|> try parseEmptyString
+         <|> try parseRepeat
          <|> try parseUnboundVariable
+         <|> try parseOutputAscii
          <|> try parseSeparator
          <|> try parseSymbol
          <|> try parseSayOperator

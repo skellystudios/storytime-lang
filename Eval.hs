@@ -62,13 +62,24 @@ runExpr (MethodApp method_name arg_name) = do
             let arg_val = (getValue arg_name dict)
             let new_dict = setValue "someone_val" (S arg_name) dict
             val_res <- liftIO(runStateT (runExpr method) new_dict)
+            put $ snd val_res
             let new_val = fst val_res
             return $ new_val
 
 runExpr (Sequence exprs) = do
             dict <- get
             res <- liftIO(foldM g (S "", dict) (map runExpr exprs))
+            put $ snd res
             return $ fst res
+
+
+runExpr (RepeatedMethodApp m a) = do
+            dict <- get
+            let exprs = replicate 20 (MethodApp m a)
+            res <- liftIO(foldM g (S "", dict) (map runExpr exprs))
+            put $ snd res
+            return $ fst res
+
 
 runExpr GetLine =
             liftIO getLine
@@ -79,13 +90,26 @@ runExpr (While p x) =
         when b (runExpr x >> again)
 
 
+runExpr (Combine name1_expr name2_expr) = do
+            dict <- get
+            name1_res <- liftIO(runStateT (runExpr name1_expr) dict)
+            name2_res <- liftIO(runStateT (runExpr name2_expr) dict)
+            let n1_val = (getValue (fst name1_res) dict)
+            let n2_val = (getValue (fst name2_res) dict)
+            let new_val = combine n1_val n2_val
+            let new_dict = (setValue (fst name1_res) new_val dict)
+            put new_dict
+            return new_val
+
+
 getValue :: Name -> Store -> Value
 getValue n (Store values methods) =
   lookupDefault (I (length n)) n values
 
 getMethod :: Name -> Store -> Expr Value
 getMethod n (Store values methods) =
-  let full_n = (map toLower n) ++ "ing" in
+  let strip_s = if last(n) == 's' then (start n) else n in
+  let full_n = (map toLower strip_s) ++ "ing" in
     lookupDefault (PrimString full_n) full_n methods
 
 setValue :: Name -> Value -> Store -> Store
@@ -100,6 +124,7 @@ setMethod n val (Store values methods) =
 
 
 splitBySeparator :: TokenSeq -> Expr Value
+splitBySeparator ((MethodDecOp x):tks) = MethodDec x (splitBySeparator tks)
 splitBySeparator tks = let splits = (splitOn [Separator] tks) in
                 case (length splits) of
                   1 -> makeAST tks
@@ -108,16 +133,27 @@ splitBySeparator tks = let splits = (splitOn [Separator] tks) in
 
 makeAST :: TokenSeq -> Expr Value
 makeAST (sub@(Symbol x):(SayOperator):phr@(String y):[]) = Print (PrimString y)
-makeAST (sub@(Symbol x):(Atom a):[]) = MethodApp a x
+makeAST (sub@(Symbol x):(Atom a):_) = MethodApp a x
+makeAST (sub@(Symbol x):(RepeatOp):(Atom a):_) = RepeatedMethodApp a x
 makeAST (sub@(UnboundVariable x):(SayOperator):phr@(String y):[]) = Print (PrimString y)
 makeAST (sub@(UnboundVariable x):(SayOperator):_) = Print (GetVar (DerefSymbol x))
 makeAST (sub@(Symbol x):(SayOperator):_) = Print (GetVar (DerefSymbol x))
 makeAST (sub@(Symbol x):(AssignOperator):tks) = SetVar (DerefSymbol x) (makeAST tks)
 makeAST (sub@(Symbol x):[]) = GetVar (DerefSymbol x)
+makeAST (sub@(UnboundVariable x):[]) = GetVar (DerefSymbol x)
 makeAST [(String x)] = PrimString x
 makeAST ((MethodDecOp x):tks) = MethodDec x (makeAST tks)
 
-makeASTs = map makeAST . tokenize
+makeAST (sub@(Symbol x):(OutputAsciiOp):_) = OutputAscii (DerefSymbol x)
+makeAST (sub@(UnboundVariable x):(OutputAsciiOp):_) = OutputAscii (DerefSymbol x)
+
+makeAST ((Symbol x):(CombineOp):(Symbol y):_) = Combine (DerefSymbol x) (DerefSymbol y)
+makeAST ((UnboundVariable x):(CombineOp):(Symbol y):_) = Combine (DerefSymbol x) (DerefSymbol y)
+makeAST ((Symbol x):(CombineOp):(UnboundVariable y):_) = Combine (DerefSymbol x) (DerefSymbol y)
+makeAST ((UnboundVariable x):(CombineOp):(UnboundVariable y):_) = Combine (DerefSymbol x) (DerefSymbol y)
+
+
+makeASTs = map splitBySeparator . tokenize
 
 debugMakeAST :: String -> [String]
 debugMakeAST = map (pp . makeAST) . tokenize
@@ -132,3 +168,9 @@ makeSTs = map runExpr . makeASTs
 
 
 run xs = foldM f (Store empty empty) (makeSTs xs)
+
+start = reverse . tail . reverse
+
+combine (S x) (S y) = S(x ++ y)
+combine (I x) (I y) = I(x + y)
+combine x y = x
