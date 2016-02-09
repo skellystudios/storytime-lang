@@ -1,4 +1,4 @@
-
+"A republican hears the democrat say nothing and the democrat hears the republican say wise things. Campaigning is where someone says promises they can't keep and the democrat hears them and they listen to the republican and the republican hears the democrat. I always campaign."
 
 # Variable Declaration
 A dog
