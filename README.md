@@ -3,7 +3,11 @@ Interpreted programming language in haskell that can be disguised to look like n
 
 First, an example:
 
-    A republican hears the democrat say nothing and the democrat hears the republican say wise things. Campaigning is where someone says promises they can't keep and the democrat hears them and they listen to the republican and the republican hears the democrat. I always campaign.
+    A republican hears the democrat say nothing and the democrat hears the republican say wise things. 
+    Campaigning is where someone says promises they can't keep and the democrat hears them and they 
+    listen to the republican and the republican hears the democrat. I always campaign.
+
+This is a valid program in StoryTime lang. Running it prints the first 20 fibonacci numbers
 
 StoryTime is a language whose aim is to be easily writable by a human programmer, but also easily mistook for valid semantic English. The idea came from the concept of steganography (security by obscurity, often hiding a secret inside something innocuous, not to be confused with stenography, which is the art of being able to write something so quickly it’s instantly unreadable).
 
